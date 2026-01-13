@@ -4,7 +4,23 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+
+    <!-- Package metadata -->
+    <PackageId>ModelingEvolution.FileSystem</PackageId>
+    <Title>ModelingEvolution.FileSystem</Title>
+    <Description>Strongly-typed file system path handling with AbsolutePath and RelativePath value types. Features intuitive path arithmetic operators (Relative + Relative, Absolute + Relative, Absolute - Absolute), cross-platform normalization, IParsable support, and JSON serialization.</Description>
+    <Authors>ModelingEvolution</Authors>
+    <PackageTags>filesystem;path;filepath;absolute;relative;cross-platform;value-type;ddd</PackageTags>
+    <PackageProjectUrl>https://github.com/modelingevolution/fs</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/modelingevolution/fs</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="ModelingEvolution.FileSystem.Tests" />

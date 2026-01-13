@@ -128,6 +128,26 @@ public class AbsolutePathTests
     }
 
     [Fact]
+    public void Addition_WithFileExtension_AppendsExtension()
+    {
+        var path = new AbsolutePath(OperatingSystem.IsWindows() ? @"C:\foo\document" : "/foo/document");
+
+        var result = path + FileExtension.Txt;
+
+        ((string)result).Should().Be(NormalizePath(OperatingSystem.IsWindows() ? @"C:\foo\document.txt" : "/foo/document.txt"));
+    }
+
+    [Fact]
+    public void Addition_WithEmptyExtension_ReturnsOriginal()
+    {
+        var path = new AbsolutePath(TestPath);
+
+        var result = path + FileExtension.None;
+
+        result.Should().Be(path);
+    }
+
+    [Fact]
     public void Subtraction_TwoAbsolutePaths_ReturnsRelativePath()
     {
         var basePath = new AbsolutePath(TestPath);

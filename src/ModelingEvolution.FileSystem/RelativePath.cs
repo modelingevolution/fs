@@ -113,6 +113,16 @@ public readonly record struct RelativePath : IParsable<RelativePath>, IComparabl
         return left + new RelativePath(right);
     }
 
+    /// <summary>
+    /// Appends a file extension to a relative path.
+    /// </summary>
+    public static RelativePath operator +(RelativePath left, FileExtension right)
+    {
+        if (right.IsEmpty) return left;
+        var newPath = (left._value ?? string.Empty) + right.WithDot;
+        return new RelativePath(newPath);
+    }
+
     public static bool operator <(RelativePath left, RelativePath right) => left.CompareTo(right) < 0;
     public static bool operator <=(RelativePath left, RelativePath right) => left.CompareTo(right) <= 0;
     public static bool operator >(RelativePath left, RelativePath right) => left.CompareTo(right) > 0;

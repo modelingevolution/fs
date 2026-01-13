@@ -141,6 +141,26 @@ public class RelativePathTests
         ((string)result).Should().Be("foo");
     }
 
+    [Fact]
+    public void Addition_WithFileExtension_AppendsExtension()
+    {
+        var path = new RelativePath("foo/bar/document");
+
+        var result = path + FileExtension.Txt;
+
+        ((string)result).Should().Be(NormalizeSeparators("foo/bar/document.txt"));
+    }
+
+    [Fact]
+    public void Addition_WithEmptyExtension_ReturnsOriginal()
+    {
+        var path = new RelativePath("foo/bar");
+
+        var result = path + FileExtension.None;
+
+        result.Should().Be(path);
+    }
+
     #endregion
 
     #region Conversions

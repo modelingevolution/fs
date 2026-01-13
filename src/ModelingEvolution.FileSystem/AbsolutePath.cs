@@ -118,6 +118,16 @@ public readonly record struct AbsolutePath : IParsable<AbsolutePath>, IComparabl
     }
 
     /// <summary>
+    /// Appends a file extension to an absolute path.
+    /// </summary>
+    public static AbsolutePath operator +(AbsolutePath left, FileExtension right)
+    {
+        if (right.IsEmpty) return left;
+        var newPath = (left._value ?? string.Empty) + right.WithDot;
+        return new AbsolutePath(newPath);
+    }
+
+    /// <summary>
     /// Gets the relative path from one absolute path to another.
     /// Result represents how to get from left to right.
     /// </summary>

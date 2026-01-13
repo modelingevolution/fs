@@ -6,9 +6,10 @@ Strongly-typed file system path handling for .NET with intuitive path arithmetic
 
 ## Features
 
-- **Type-safe paths**: `AbsolutePath` and `RelativePath` value types prevent mixing path types
+- **Type-safe paths**: `AbsolutePath`, `RelativePath`, and `FileExtension` value types
 - **Path arithmetic**: Intuitive operators for combining and computing paths
 - **Cross-platform**: Automatically normalizes separators to current platform (`/` on Linux, `\` on Windows)
+- **Pure value types**: No filesystem access - paths are just data
 - **IParsable support**: Works with `Parse`, `TryParse`, and generic parsing APIs
 - **JSON serialization**: Built-in `System.Text.Json` support via `JsonParsableConverter`
 
@@ -23,7 +24,7 @@ dotnet add package ModelingEvolution.FileSystem
 ```csharp
 using ModelingEvolution.FileSystem;
 
-// Create paths
+// Create paths (implicit conversion from string)
 AbsolutePath projectRoot = "/home/user/projects/myapp";  // Linux
 AbsolutePath projectRoot = @"C:\Projects\MyApp";         // Windows
 
@@ -40,8 +41,6 @@ RelativePath relative = fullPath - projectRoot;
 ```
 
 ## Path Arithmetic Operators
-
-The library provides three intuitive operators:
 
 | Expression | Result | Description |
 |------------|--------|-------------|
@@ -77,17 +76,17 @@ Paths are automatically normalized to the current platform's separator:
 
 ```csharp
 // On Linux - all separators become /
-var path = new RelativePath("foo\\bar/baz");
-Console.WriteLine(path.Value);  // foo/bar/baz
+RelativePath path = "foo\\bar/baz";
+Console.WriteLine((string)path);  // foo/bar/baz
 
 // On Windows - all separators become \
-var path = new RelativePath("foo\\bar/baz");
-Console.WriteLine(path.Value);  // foo\bar\baz
+RelativePath path = "foo\\bar/baz";
+Console.WriteLine((string)path);  // foo\bar\baz
 ```
 
 Mixed and duplicate separators are handled:
 ```csharp
-var path = new RelativePath("foo//bar\\\\baz");
+RelativePath path = "foo//bar\\\\baz";
 // Normalized to: foo/bar/baz (Linux) or foo\bar\baz (Windows)
 ```
 
@@ -103,24 +102,23 @@ public readonly record struct RelativePath : IParsable<RelativePath>, IComparabl
     public static readonly RelativePath Empty;
 
     // Properties
-    public string Value { get; }
     public bool IsEmpty { get; }
-    public string FileName { get; }
-    public string Extension { get; }
+    public RelativePath FileName { get; }
+    public RelativePath FileNameWithoutExtension { get; }
+    public FileExtension Extension { get; }
     public RelativePath Parent { get; }
     public string[] Segments { get; }
+
+    // Methods
+    public RelativePath ChangeExtension(FileExtension newExtension);
 
     // Operators
     public static RelativePath operator +(RelativePath left, RelativePath right);
     public static RelativePath operator +(RelativePath left, string right);
 
-    // Conversions
+    // Conversions (use these instead of .Value)
     public static implicit operator RelativePath(string path);
     public static implicit operator string(RelativePath path);
-
-    // Parsing
-    public static RelativePath Parse(string s, IFormatProvider? provider = null);
-    public static bool TryParse(string? s, IFormatProvider? provider, out RelativePath result);
 }
 ```
 
@@ -131,53 +129,76 @@ public readonly record struct AbsolutePath : IParsable<AbsolutePath>, IComparabl
 {
     // Construction
     public AbsolutePath(string path);
-    public static AbsolutePath CurrentDirectory { get; }
 
     // Properties
-    public string Value { get; }
-    public string FileName { get; }
-    public string Extension { get; }
-    public string Root { get; }
+    public RelativePath FileName { get; }
+    public RelativePath FileNameWithoutExtension { get; }
+    public FileExtension Extension { get; }
+    public AbsolutePath? Root { get; }
     public AbsolutePath? Parent { get; }
-    public bool Exists { get; }
-    public bool IsFile { get; }
-    public bool IsDirectory { get; }
+
+    // Methods
+    public AbsolutePath ChangeExtension(FileExtension newExtension);
+    public bool StartsWith(AbsolutePath basePath);
 
     // Operators
     public static AbsolutePath operator +(AbsolutePath left, RelativePath right);
     public static AbsolutePath operator +(AbsolutePath left, string right);
     public static RelativePath operator -(AbsolutePath right, AbsolutePath left);
 
-    // Conversions
+    // Conversions (use these instead of .Value)
     public static implicit operator AbsolutePath(string path);
     public static implicit operator string(AbsolutePath path);
+}
+```
+
+### FileExtension
+
+```csharp
+public readonly record struct FileExtension : IParsable<FileExtension>, IComparable<FileExtension>
+{
+    // Construction
+    public FileExtension(string extension);
+    public static readonly FileExtension None;
+
+    // Properties
+    public bool IsEmpty { get; }
+    public string WithDot { get; }      // ".txt"
+    public string WithoutDot { get; }   // "txt"
+
+    // Common extensions
+    public static FileExtension Txt { get; }
+    public static FileExtension Json { get; }
+    public static FileExtension Cs { get; }
+    public static FileExtension Md { get; }
+    // ... and more
 
     // Methods
-    public bool StartsWith(AbsolutePath basePath);
+    public bool IsOneOf(params FileExtension[] extensions);
+    public bool IsOneOf(params string[] extensions);
 
-    // Parsing
-    public static AbsolutePath Parse(string s, IFormatProvider? provider = null);
-    public static bool TryParse(string? s, IFormatProvider? provider, out AbsolutePath result);
+    // Conversions
+    public static implicit operator FileExtension(string extension);
+    public static implicit operator string(FileExtension extension);
 }
 ```
 
 ## JSON Serialization
 
-Both types serialize as strings using `JsonParsableConverter`:
+All types serialize as strings:
 
 ```csharp
 using System.Text.Json;
 
 var config = new AppConfig
 {
-    ProjectRoot = new AbsolutePath("/projects/myapp"),
-    SourceFolder = new RelativePath("src/main")
+    ProjectRoot = (AbsolutePath)"/projects/myapp",
+    SourceFolder = (RelativePath)"src/main",
+    OutputExtension = FileExtension.Json
 };
 
 string json = JsonSerializer.Serialize(config);
-// {"ProjectRoot":"/projects/myapp","SourceFolder":"src/main"}
-
-var restored = JsonSerializer.Deserialize<AppConfig>(json);
+// {"ProjectRoot":"/projects/myapp","SourceFolder":"src/main","OutputExtension":".json"}
 ```
 
 ## Use Cases
@@ -185,31 +206,29 @@ var restored = JsonSerializer.Deserialize<AppConfig>(json);
 ### Building file paths safely
 
 ```csharp
-AbsolutePath outputDir = config.BuildOutput;
-RelativePath artifactPath = "bin" + config.Configuration + config.TargetFramework;
+AbsolutePath outputDir = (AbsolutePath)config.BuildOutput;
+RelativePath artifactPath = (RelativePath)"bin" + config.Configuration + config.TargetFramework;
 AbsolutePath fullOutput = outputDir + artifactPath;
+```
+
+### Working with extensions
+
+```csharp
+RelativePath file = "document.txt";
+if (file.Extension.IsOneOf(".txt", ".md", ".rst"))
+{
+    // Handle text files
+    var newFile = file.ChangeExtension(".html");
+}
 ```
 
 ### Computing relative paths for links
 
 ```csharp
-AbsolutePath docFile = "/docs/api/classes/MyClass.md";
-AbsolutePath imageFile = "/docs/images/diagram.png";
+AbsolutePath docFile = (AbsolutePath)"/docs/api/classes/MyClass.md";
+AbsolutePath imageFile = (AbsolutePath)"/docs/images/diagram.png";
 RelativePath relativeLink = imageFile - docFile.Parent!.Value;
 // Result: ../../images/diagram.png
-```
-
-### Working with project structures
-
-```csharp
-AbsolutePath solution = AbsolutePath.CurrentDirectory;
-RelativePath testProject = "tests/MyProject.Tests";
-AbsolutePath testDir = solution + testProject;
-
-if (testDir.IsDirectory)
-{
-    // Run tests...
-}
 ```
 
 ## License

@@ -30,24 +30,26 @@ public readonly record struct RelativePath : IParsable<RelativePath>, IComparabl
     }
 
     /// <summary>
-    /// Gets the path value.
-    /// </summary>
-    public string Value => _value ?? string.Empty;
-
-    /// <summary>
     /// Gets whether this path is empty.
     /// </summary>
     public bool IsEmpty => string.IsNullOrEmpty(_value);
 
     /// <summary>
-    /// Gets the file name portion of the path.
+    /// Gets the file name portion of the path as a RelativePath.
     /// </summary>
-    public string FileName => Path.GetFileName(Value);
+    public RelativePath FileName
+    {
+        get
+        {
+            var fileName = Path.GetFileName(_value ?? string.Empty);
+            return string.IsNullOrEmpty(fileName) ? Empty : new RelativePath(fileName);
+        }
+    }
 
     /// <summary>
-    /// Gets the file extension including the dot.
+    /// Gets the file extension.
     /// </summary>
-    public string Extension => Path.GetExtension(Value);
+    public FileExtension Extension => new(Path.GetExtension(_value ?? string.Empty));
 
     /// <summary>
     /// Gets the parent directory as a RelativePath.
@@ -56,7 +58,7 @@ public readonly record struct RelativePath : IParsable<RelativePath>, IComparabl
     {
         get
         {
-            var dir = Path.GetDirectoryName(Value);
+            var dir = Path.GetDirectoryName(_value ?? string.Empty);
             return string.IsNullOrEmpty(dir) ? Empty : new RelativePath(dir);
         }
     }
@@ -64,9 +66,31 @@ public readonly record struct RelativePath : IParsable<RelativePath>, IComparabl
     /// <summary>
     /// Gets the path segments.
     /// </summary>
-    public string[] Segments => Value.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+    public string[] Segments => (_value ?? string.Empty)
+        .Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
         .Where(s => !string.IsNullOrEmpty(s))
         .ToArray();
+
+    /// <summary>
+    /// Gets the file name without extension as a RelativePath.
+    /// </summary>
+    public RelativePath FileNameWithoutExtension
+    {
+        get
+        {
+            var name = Path.GetFileNameWithoutExtension(_value ?? string.Empty);
+            return string.IsNullOrEmpty(name) ? Empty : new RelativePath(name);
+        }
+    }
+
+    /// <summary>
+    /// Changes the extension of this path.
+    /// </summary>
+    public RelativePath ChangeExtension(FileExtension newExtension)
+    {
+        var newPath = Path.ChangeExtension(_value ?? string.Empty, newExtension.WithDot);
+        return string.IsNullOrEmpty(newPath) ? Empty : new RelativePath(newPath);
+    }
 
     #region Operators
 
@@ -77,7 +101,7 @@ public readonly record struct RelativePath : IParsable<RelativePath>, IComparabl
     {
         if (left.IsEmpty) return right;
         if (right.IsEmpty) return left;
-        return new RelativePath(Path.Combine(left.Value, right.Value));
+        return new RelativePath(Path.Combine(left._value, right._value));
     }
 
     /// <summary>
@@ -99,7 +123,7 @@ public readonly record struct RelativePath : IParsable<RelativePath>, IComparabl
     #region Conversions
 
     public static implicit operator RelativePath(string path) => new(path);
-    public static implicit operator string(RelativePath path) => path.Value;
+    public static implicit operator string(RelativePath path) => path._value ?? string.Empty;
 
     #endregion
 
@@ -128,9 +152,9 @@ public readonly record struct RelativePath : IParsable<RelativePath>, IComparabl
     #endregion
 
     public int CompareTo(RelativePath other) =>
-        string.Compare(Value, other.Value, StringComparison.OrdinalIgnoreCase);
+        string.Compare(_value, other._value, StringComparison.OrdinalIgnoreCase);
 
-    public override string ToString() => Value;
+    public override string ToString() => _value ?? string.Empty;
 
     private static string NormalizePath(string path)
     {

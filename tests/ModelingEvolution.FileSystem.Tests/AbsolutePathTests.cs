@@ -14,7 +14,7 @@ public class AbsolutePathTests
     {
         var path = new AbsolutePath(TestPath);
 
-        path.Value.Should().Be(NormalizePath(TestPath));
+        ((string)path).Should().Be(NormalizePath(TestPath));
     }
 
     [Fact]
@@ -34,11 +34,12 @@ public class AbsolutePathTests
     }
 
     [Fact]
-    public void FileName_ReturnsLastSegment()
+    public void FileName_ReturnsLastSegmentAsRelativePath()
     {
         var path = new AbsolutePath(OperatingSystem.IsWindows() ? @"C:\foo\bar.txt" : "/foo/bar.txt");
 
-        path.FileName.Should().Be("bar.txt");
+        path.FileName.Should().Be(new RelativePath("bar.txt"));
+        ((string)path.FileName).Should().Be("bar.txt");
     }
 
     [Fact]
@@ -46,15 +47,17 @@ public class AbsolutePathTests
     {
         var path = new AbsolutePath(OperatingSystem.IsWindows() ? @"C:\foo\bar.txt" : "/foo/bar.txt");
 
-        path.Extension.Should().Be(".txt");
+        path.Extension.Should().Be(new FileExtension(".txt"));
+        path.Extension.WithDot.Should().Be(".txt");
     }
 
     [Fact]
-    public void Root_ReturnsRootPath()
+    public void Root_ReturnsRootAsAbsolutePath()
     {
         var path = new AbsolutePath(TestPath);
 
-        path.Root.Should().Be(TestRoot);
+        path.Root.Should().NotBeNull();
+        ((string)path.Root!.Value).Should().Be(TestRoot);
     }
 
     [Fact]
@@ -62,7 +65,7 @@ public class AbsolutePathTests
     {
         var path = new AbsolutePath(TestPath);
 
-        path.Parent!.Value.Value.Should().Be(NormalizePath(OperatingSystem.IsWindows() ? @"C:\foo" : "/foo"));
+        ((string)path.Parent!.Value).Should().Be(NormalizePath(OperatingSystem.IsWindows() ? @"C:\foo" : "/foo"));
     }
 
     [Fact]
@@ -71,6 +74,24 @@ public class AbsolutePathTests
         var path = new AbsolutePath(TestRoot);
 
         path.Parent.Should().BeNull();
+    }
+
+    [Fact]
+    public void FileNameWithoutExtension_ReturnsNameOnly()
+    {
+        var path = new AbsolutePath(OperatingSystem.IsWindows() ? @"C:\foo\document.txt" : "/foo/document.txt");
+
+        ((string)path.FileNameWithoutExtension).Should().Be("document");
+    }
+
+    [Fact]
+    public void ChangeExtension_ReturnsPathWithNewExtension()
+    {
+        var path = new AbsolutePath(OperatingSystem.IsWindows() ? @"C:\foo\document.txt" : "/foo/document.txt");
+
+        var result = path.ChangeExtension(".md");
+
+        ((string)result).Should().Be(NormalizePath(OperatingSystem.IsWindows() ? @"C:\foo\document.md" : "/foo/document.md"));
     }
 
     #region Operators
@@ -83,7 +104,7 @@ public class AbsolutePathTests
 
         var result = absolute + relative;
 
-        result.Value.Should().Be(NormalizePath(OperatingSystem.IsWindows() ? @"C:\foo\bar\baz\qux" : "/foo/bar/baz/qux"));
+        ((string)result).Should().Be(NormalizePath(OperatingSystem.IsWindows() ? @"C:\foo\bar\baz\qux" : "/foo/bar/baz/qux"));
     }
 
     [Fact]
@@ -93,7 +114,7 @@ public class AbsolutePathTests
 
         var result = absolute + "baz";
 
-        result.Value.Should().Be(NormalizePath(OperatingSystem.IsWindows() ? @"C:\foo\bar\baz" : "/foo/bar/baz"));
+        ((string)result).Should().Be(NormalizePath(OperatingSystem.IsWindows() ? @"C:\foo\bar\baz" : "/foo/bar/baz"));
     }
 
     [Fact]
@@ -114,7 +135,7 @@ public class AbsolutePathTests
 
         RelativePath result = fullPath - basePath;
 
-        result.Value.Should().Be("baz");
+        ((string)result).Should().Be("baz");
     }
 
     [Fact]
@@ -124,7 +145,7 @@ public class AbsolutePathTests
 
         RelativePath result = path - path;
 
-        result.Value.Should().Be(".");
+        ((string)result).Should().Be(".");
     }
 
     [Fact]
@@ -136,7 +157,7 @@ public class AbsolutePathTests
         RelativePath result = path2 - path1;
 
         // Going from /foo/bar to /foo/baz requires going up one level and then to baz
-        result.Value.Should().Be(NormalizeSeparators("../baz"));
+        ((string)result).Should().Be(NormalizeSeparators("../baz"));
     }
 
     #endregion
@@ -148,7 +169,7 @@ public class AbsolutePathTests
     {
         AbsolutePath path = TestPath;
 
-        path.Value.Should().Be(NormalizePath(TestPath));
+        ((string)path).Should().Be(NormalizePath(TestPath));
     }
 
     [Fact]
@@ -170,7 +191,7 @@ public class AbsolutePathTests
     {
         var result = AbsolutePath.Parse(TestPath);
 
-        result.Value.Should().Be(NormalizePath(TestPath));
+        ((string)result).Should().Be(NormalizePath(TestPath));
     }
 
     [Fact]
@@ -187,7 +208,7 @@ public class AbsolutePathTests
         var success = AbsolutePath.TryParse(TestPath, null, out var result);
 
         success.Should().BeTrue();
-        result.Value.Should().Be(NormalizePath(TestPath));
+        ((string)result).Should().Be(NormalizePath(TestPath));
     }
 
     [Fact]
@@ -248,19 +269,6 @@ public class AbsolutePathTests
         var path2 = new AbsolutePath(TestPath2);
 
         path1.Should().NotBe(path2);
-    }
-
-    #endregion
-
-    #region CurrentDirectory
-
-    [Fact]
-    public void CurrentDirectory_ReturnsValidAbsolutePath()
-    {
-        var current = AbsolutePath.CurrentDirectory;
-
-        current.Value.Should().NotBeEmpty();
-        Path.IsPathRooted(current.Value).Should().BeTrue();
     }
 
     #endregion

@@ -11,7 +11,7 @@ namespace ModelingEvolution.FileSystem.Tests;
 /// </summary>
 public class PathOperatorTests
 {
-    private static string RootPath => OperatingSystem.IsWindows() ? @"C:\" : "/";
+    private static char Sep => Path.DirectorySeparatorChar;
 
     #region Relative + Relative = Relative
 
@@ -23,7 +23,7 @@ public class PathOperatorTests
 
         RelativePath result = left + right;
 
-        result.Value.Should().Be(NormalizeSeparators("src/components"));
+        ((string)result).Should().Be($"src{Sep}components");
     }
 
     [Fact]
@@ -34,7 +34,7 @@ public class PathOperatorTests
 
         RelativePath result = left + right;
 
-        result.Value.Should().Be(NormalizeSeparators("src/app/components/ui"));
+        ((string)result).Should().Be($"src{Sep}app{Sep}components{Sep}ui");
     }
 
     [Fact]
@@ -46,7 +46,7 @@ public class PathOperatorTests
 
         RelativePath result = a + b + c;
 
-        result.Value.Should().Be(NormalizeSeparators("a/b/c"));
+        ((string)result).Should().Be($"a{Sep}b{Sep}c");
     }
 
     #endregion
@@ -61,7 +61,7 @@ public class PathOperatorTests
 
         AbsolutePath result = absolute + relative;
 
-        result.Value.Should().Be(NormalizePath(OperatingSystem.IsWindows() ? @"C:\projects\myapp" : "/projects/myapp"));
+        ((string)result).Should().Be(NormalizePath(OperatingSystem.IsWindows() ? @"C:\projects\myapp" : "/projects/myapp"));
     }
 
     [Fact]
@@ -72,7 +72,7 @@ public class PathOperatorTests
 
         AbsolutePath result = absolute + relative;
 
-        result.Value.Should().Be(NormalizePath(OperatingSystem.IsWindows() ? @"C:\users\john\documents\work" : "/users/john/documents/work"));
+        ((string)result).Should().Be(NormalizePath(OperatingSystem.IsWindows() ? @"C:\users\john\documents\work" : "/users/john/documents/work"));
     }
 
     [Fact]
@@ -84,7 +84,7 @@ public class PathOperatorTests
 
         AbsolutePath result = absolute + rel1 + rel2;
 
-        result.Value.Should().Be(NormalizePath(OperatingSystem.IsWindows() ? @"C:\root\level1\level2" : "/root/level1/level2"));
+        ((string)result).Should().Be(NormalizePath(OperatingSystem.IsWindows() ? @"C:\root\level1\level2" : "/root/level1/level2"));
     }
 
     [Fact]
@@ -94,7 +94,7 @@ public class PathOperatorTests
 
         AbsolutePath result = absolute + "src/main";
 
-        result.Value.Should().Be(NormalizePath(OperatingSystem.IsWindows() ? @"C:\projects\src\main" : "/projects/src/main"));
+        ((string)result).Should().Be(NormalizePath(OperatingSystem.IsWindows() ? @"C:\projects\src\main" : "/projects/src/main"));
     }
 
     #endregion
@@ -109,7 +109,7 @@ public class PathOperatorTests
 
         RelativePath result = child - parent;
 
-        result.Value.Should().Be(NormalizeSeparators("myapp/src"));
+        ((string)result).Should().Be($"myapp{Sep}src");
     }
 
     [Fact]
@@ -119,7 +119,7 @@ public class PathOperatorTests
 
         RelativePath result = path - path;
 
-        result.Value.Should().Be(".");
+        ((string)result).Should().Be(".");
     }
 
     [Fact]
@@ -130,7 +130,7 @@ public class PathOperatorTests
 
         RelativePath result = to - from;
 
-        result.Value.Should().Be(NormalizeSeparators("../app2"));
+        ((string)result).Should().Be($"..{Sep}app2");
     }
 
     [Fact]
@@ -141,7 +141,7 @@ public class PathOperatorTests
 
         RelativePath result = to - from;
 
-        result.Value.Should().Be(NormalizeSeparators("../../../x/y/z"));
+        ((string)result).Should().Be($"..{Sep}..{Sep}..{Sep}x{Sep}y{Sep}z");
     }
 
     #endregion
@@ -180,13 +180,10 @@ public class PathOperatorTests
         // Get relative path from projects
         RelativePath fromProjects = fullPath - projects;
 
-        fromProjects.Value.Should().Be(NormalizeSeparators("myapp/src/components"));
+        ((string)fromProjects).Should().Be($"myapp{Sep}src{Sep}components");
     }
 
     #endregion
-
-    private static string NormalizeSeparators(string path) =>
-        path.Replace('/', Path.DirectorySeparatorChar);
 
     private static string NormalizePath(string path) =>
         Path.GetFullPath(path).Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar)

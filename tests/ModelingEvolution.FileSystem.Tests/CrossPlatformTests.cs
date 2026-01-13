@@ -18,7 +18,7 @@ public class CrossPlatformTests
     {
         var path = new RelativePath("foo/bar/baz");
 
-        path.Value.Should().Be($"foo{Sep}bar{Sep}baz");
+        ((string)path).Should().Be($"foo{Sep}bar{Sep}baz");
     }
 
     [Fact]
@@ -26,7 +26,7 @@ public class CrossPlatformTests
     {
         var path = new RelativePath("foo\\bar\\baz");
 
-        path.Value.Should().Be($"foo{Sep}bar{Sep}baz");
+        ((string)path).Should().Be($"foo{Sep}bar{Sep}baz");
     }
 
     [Fact]
@@ -34,7 +34,7 @@ public class CrossPlatformTests
     {
         var path = new RelativePath("foo/bar\\baz");
 
-        path.Value.Should().Be($"foo{Sep}bar{Sep}baz");
+        ((string)path).Should().Be($"foo{Sep}bar{Sep}baz");
     }
 
     [Fact]
@@ -42,7 +42,7 @@ public class CrossPlatformTests
     {
         var path = new RelativePath("foo//bar///baz");
 
-        path.Value.Should().Be($"foo{Sep}bar{Sep}baz");
+        ((string)path).Should().Be($"foo{Sep}bar{Sep}baz");
     }
 
     [Fact]
@@ -50,7 +50,7 @@ public class CrossPlatformTests
     {
         var path = new RelativePath("foo\\\\bar//baz");
 
-        path.Value.Should().Be($"foo{Sep}bar{Sep}baz");
+        ((string)path).Should().Be($"foo{Sep}bar{Sep}baz");
     }
 
     [Fact]
@@ -58,7 +58,7 @@ public class CrossPlatformTests
     {
         var path = new RelativePath("foo/bar/");
 
-        path.Value.Should().Be($"foo{Sep}bar");
+        ((string)path).Should().Be($"foo{Sep}bar");
     }
 
     [Fact]
@@ -69,7 +69,7 @@ public class CrossPlatformTests
 
         var result = left + right;
 
-        result.Value.Should().Be($"foo{Sep}bar{Sep}baz{Sep}qux");
+        ((string)result).Should().Be($"foo{Sep}bar{Sep}baz{Sep}qux");
     }
 
     #endregion
@@ -95,7 +95,7 @@ public class CrossPlatformTests
 
         var path = new AbsolutePath(inputPath);
 
-        path.Value.Should().Be(expectedPath);
+        ((string)path).Should().Be(expectedPath);
     }
 
     [Fact]
@@ -117,7 +117,7 @@ public class CrossPlatformTests
 
         var result = basePath + new RelativePath("foo/bar\\baz");
 
-        result.Value.Should().Be(expectedPath);
+        ((string)result).Should().Be(expectedPath);
     }
 
     #endregion
@@ -141,7 +141,7 @@ public class CrossPlatformTests
     {
         var path = RelativePath.Parse("src/components\\ui");
 
-        path.Value.Should().Be($"src{Sep}components{Sep}ui");
+        ((string)path).Should().Be($"src{Sep}components{Sep}ui");
     }
 
     [Fact]
@@ -164,7 +164,7 @@ public class CrossPlatformTests
         var success = AbsolutePath.TryParse(input, null, out var path);
 
         success.Should().BeTrue();
-        path.Value.Should().Be(expected);
+        ((string)path).Should().Be(expected);
     }
 
     #endregion
@@ -189,7 +189,7 @@ public class CrossPlatformTests
 
         RelativePath result = to - from;
 
-        result.Value.Should().Be($"src{Sep}components");
+        ((string)result).Should().Be($"src{Sep}components");
     }
 
     #endregion

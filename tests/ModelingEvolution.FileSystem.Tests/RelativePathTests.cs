@@ -10,7 +10,7 @@ public class RelativePathTests
     {
         var path = new RelativePath("foo/bar");
 
-        path.Value.Should().Be(NormalizeSeparators("foo/bar"));
+        ((string)path).Should().Be(NormalizeSeparators("foo/bar"));
     }
 
     [Fact]
@@ -27,15 +27,16 @@ public class RelativePathTests
     public void Empty_IsEmptyPath()
     {
         RelativePath.Empty.IsEmpty.Should().BeTrue();
-        RelativePath.Empty.Value.Should().BeEmpty();
+        ((string)RelativePath.Empty).Should().BeEmpty();
     }
 
     [Fact]
-    public void FileName_ReturnsLastSegment()
+    public void FileName_ReturnsLastSegmentAsRelativePath()
     {
         var path = new RelativePath("foo/bar/baz.txt");
 
-        path.FileName.Should().Be("baz.txt");
+        path.FileName.Should().Be(new RelativePath("baz.txt"));
+        ((string)path.FileName).Should().Be("baz.txt");
     }
 
     [Fact]
@@ -43,7 +44,17 @@ public class RelativePathTests
     {
         var path = new RelativePath("foo/bar.txt");
 
-        path.Extension.Should().Be(".txt");
+        path.Extension.Should().Be(new FileExtension(".txt"));
+        path.Extension.WithDot.Should().Be(".txt");
+        path.Extension.WithoutDot.Should().Be("txt");
+    }
+
+    [Fact]
+    public void Extension_WhenNoExtension_ReturnsEmpty()
+    {
+        var path = new RelativePath("foo/bar");
+
+        path.Extension.IsEmpty.Should().BeTrue();
     }
 
     [Fact]
@@ -51,7 +62,7 @@ public class RelativePathTests
     {
         var path = new RelativePath("foo/bar/baz");
 
-        path.Parent.Value.Should().Be(NormalizeSeparators("foo/bar"));
+        ((string)path.Parent).Should().Be(NormalizeSeparators("foo/bar"));
     }
 
     [Fact]
@@ -70,6 +81,24 @@ public class RelativePathTests
         path.Segments.Should().BeEquivalentTo(["foo", "bar", "baz"]);
     }
 
+    [Fact]
+    public void FileNameWithoutExtension_ReturnsNameOnly()
+    {
+        var path = new RelativePath("foo/bar/document.txt");
+
+        ((string)path.FileNameWithoutExtension).Should().Be("document");
+    }
+
+    [Fact]
+    public void ChangeExtension_ReturnsPathWithNewExtension()
+    {
+        var path = new RelativePath("foo/bar/document.txt");
+
+        var result = path.ChangeExtension(".md");
+
+        ((string)result).Should().Be(NormalizeSeparators("foo/bar/document.md"));
+    }
+
     #region Operators
 
     [Fact]
@@ -80,7 +109,7 @@ public class RelativePathTests
 
         var result = left + right;
 
-        result.Value.Should().Be(NormalizeSeparators("foo/bar/baz/qux"));
+        ((string)result).Should().Be(NormalizeSeparators("foo/bar/baz/qux"));
     }
 
     [Fact]
@@ -91,7 +120,7 @@ public class RelativePathTests
 
         var result = left + right;
 
-        result.Value.Should().Be(NormalizeSeparators("foo/bar/baz"));
+        ((string)result).Should().Be(NormalizeSeparators("foo/bar/baz"));
     }
 
     [Fact]
@@ -99,7 +128,7 @@ public class RelativePathTests
     {
         var result = RelativePath.Empty + new RelativePath("foo");
 
-        result.Value.Should().Be("foo");
+        ((string)result).Should().Be("foo");
     }
 
     [Fact]
@@ -109,7 +138,7 @@ public class RelativePathTests
 
         var result = left + RelativePath.Empty;
 
-        result.Value.Should().Be("foo");
+        ((string)result).Should().Be("foo");
     }
 
     #endregion
@@ -121,7 +150,7 @@ public class RelativePathTests
     {
         RelativePath path = "foo/bar";
 
-        path.Value.Should().Be(NormalizeSeparators("foo/bar"));
+        ((string)path).Should().Be(NormalizeSeparators("foo/bar"));
     }
 
     [Fact]
@@ -143,7 +172,7 @@ public class RelativePathTests
     {
         var result = RelativePath.Parse("foo/bar");
 
-        result.Value.Should().Be(NormalizeSeparators("foo/bar"));
+        ((string)result).Should().Be(NormalizeSeparators("foo/bar"));
     }
 
     [Fact]
@@ -162,7 +191,7 @@ public class RelativePathTests
         var success = RelativePath.TryParse("foo/bar", null, out var result);
 
         success.Should().BeTrue();
-        result.Value.Should().Be(NormalizeSeparators("foo/bar"));
+        ((string)result).Should().Be(NormalizeSeparators("foo/bar"));
     }
 
     [Fact]

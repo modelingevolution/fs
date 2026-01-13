@@ -27,24 +27,35 @@ public readonly record struct AbsolutePath : IParsable<AbsolutePath>, IComparabl
     }
 
     /// <summary>
-    /// Gets the path value.
+    /// Gets the file name portion of the path as a RelativePath.
     /// </summary>
-    public string Value => _value ?? string.Empty;
+    public RelativePath FileName
+    {
+        get
+        {
+            var fileName = Path.GetFileName(_value ?? string.Empty);
+            return string.IsNullOrEmpty(fileName) ? RelativePath.Empty : new RelativePath(fileName);
+        }
+    }
 
     /// <summary>
-    /// Gets the file name portion of the path.
+    /// Gets the file extension.
     /// </summary>
-    public string FileName => Path.GetFileName(Value);
-
-    /// <summary>
-    /// Gets the file extension including the dot.
-    /// </summary>
-    public string Extension => Path.GetExtension(Value);
+    public FileExtension Extension => new(Path.GetExtension(_value ?? string.Empty));
 
     /// <summary>
     /// Gets the root of the path (e.g., "C:\" on Windows or "/" on Unix).
     /// </summary>
-    public string Root => Path.GetPathRoot(Value) ?? string.Empty;
+    public AbsolutePath? Root
+    {
+        get
+        {
+            var root = Path.GetPathRoot(_value ?? string.Empty);
+            if (string.IsNullOrEmpty(root))
+                return null;
+            return new AbsolutePath(root);
+        }
+    }
 
     /// <summary>
     /// Gets the parent directory as an AbsolutePath.
@@ -53,7 +64,7 @@ public readonly record struct AbsolutePath : IParsable<AbsolutePath>, IComparabl
     {
         get
         {
-            var dir = Path.GetDirectoryName(Value);
+            var dir = Path.GetDirectoryName(_value ?? string.Empty);
             if (string.IsNullOrEmpty(dir))
                 return null;
             return new AbsolutePath(dir);
@@ -61,19 +72,25 @@ public readonly record struct AbsolutePath : IParsable<AbsolutePath>, IComparabl
     }
 
     /// <summary>
-    /// Checks if the file or directory exists.
+    /// Gets the file name without extension as a RelativePath.
     /// </summary>
-    public bool Exists => File.Exists(Value) || Directory.Exists(Value);
+    public RelativePath FileNameWithoutExtension
+    {
+        get
+        {
+            var name = Path.GetFileNameWithoutExtension(_value ?? string.Empty);
+            return string.IsNullOrEmpty(name) ? RelativePath.Empty : new RelativePath(name);
+        }
+    }
 
     /// <summary>
-    /// Checks if this is a file path.
+    /// Changes the extension of this path.
     /// </summary>
-    public bool IsFile => File.Exists(Value);
-
-    /// <summary>
-    /// Checks if this is a directory path.
-    /// </summary>
-    public bool IsDirectory => Directory.Exists(Value);
+    public AbsolutePath ChangeExtension(FileExtension newExtension)
+    {
+        var newPath = Path.ChangeExtension(_value ?? string.Empty, newExtension.WithDot);
+        return new AbsolutePath(newPath);
+    }
 
     #region Operators
 
@@ -83,7 +100,7 @@ public readonly record struct AbsolutePath : IParsable<AbsolutePath>, IComparabl
     public static AbsolutePath operator +(AbsolutePath left, RelativePath right)
     {
         if (right.IsEmpty) return left;
-        return new AbsolutePath(Path.Combine(left.Value, right.Value));
+        return new AbsolutePath(Path.Combine(left._value, (string)right));
     }
 
     /// <summary>
@@ -106,7 +123,7 @@ public readonly record struct AbsolutePath : IParsable<AbsolutePath>, IComparabl
     /// </summary>
     public static RelativePath operator -(AbsolutePath right, AbsolutePath left)
     {
-        var relativePath = Path.GetRelativePath(left.Value, right.Value);
+        var relativePath = Path.GetRelativePath(left._value, right._value);
         return new RelativePath(relativePath);
     }
 
@@ -120,7 +137,7 @@ public readonly record struct AbsolutePath : IParsable<AbsolutePath>, IComparabl
     #region Conversions
 
     public static implicit operator AbsolutePath(string path) => new(path);
-    public static implicit operator string(AbsolutePath path) => path.Value;
+    public static implicit operator string(AbsolutePath path) => path._value ?? string.Empty;
 
     #endregion
 
@@ -153,20 +170,15 @@ public readonly record struct AbsolutePath : IParsable<AbsolutePath>, IComparabl
     /// </summary>
     public bool StartsWith(AbsolutePath basePath)
     {
-        var normalizedBase = basePath.Value.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
-        var normalizedThis = Value.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        var normalizedBase = ((string)basePath).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        var normalizedThis = (_value ?? string.Empty).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
         return normalizedThis.StartsWith(normalizedBase, StringComparison.OrdinalIgnoreCase);
     }
 
-    /// <summary>
-    /// Gets the current working directory as an AbsolutePath.
-    /// </summary>
-    public static AbsolutePath CurrentDirectory => new(Directory.GetCurrentDirectory());
-
     public int CompareTo(AbsolutePath other) =>
-        string.Compare(Value, other.Value, StringComparison.OrdinalIgnoreCase);
+        string.Compare(_value, other._value, StringComparison.OrdinalIgnoreCase);
 
-    public override string ToString() => Value;
+    public override string ToString() => _value ?? string.Empty;
 
     private static string NormalizePath(string path)
     {

@@ -1,0 +1,78 @@
+name: Publish to NuGet
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish'
+        required: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Set version
+      id: version
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          VERSION="${{ github.event.inputs.version }}"
+        else
+          VERSION="${GITHUB_REF#refs/tags/v}"
+        fi
+        echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Update version in csproj files
+      run: |
+        VERSION="${{ steps.version.outputs.VERSION }}"
+        for csproj in src/ModelingEvolution.FileSystem/ModelingEvolution.FileSystem.csproj; do
+          if grep -q "<Version>" "$csproj"; then
+            sed -i "s/<Version>.*<\/Version>/<Version>$VERSION<\/Version>/" "$csproj"
+          else
+            sed -i "s/<\/PropertyGroup>/<Version>$VERSION<\/Version>\n  <\/PropertyGroup>/" "$csproj"
+          fi
+        done
+
+    - name: Restore
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
+
+    - name: Test
+      run: dotnet test tests/ModelingEvolution.FileSystem.Tests --configuration Release --no-build --verbosity normal
+
+    - name: Pack ModelingEvolution.FileSystem
+      run: dotnet pack src/ModelingEvolution.FileSystem/ModelingEvolution.FileSystem.csproj --configuration Release --no-build --output ./nupkg
+
+    - name: Push to NuGet
+      run: |
+        for pkg in ./nupkg/*.nupkg; do
+          dotnet nuget push "$pkg" \
+            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+        done
+
+    - name: Publish to ModelingEvolution NuGet
+      run: |
+        dotnet nuget push "./nupkg/*.nupkg" \
+          --api-key ${{ secrets.NUGET_API_KEY_ME }} \
+          --source https://nuget.modelingevolution.com/v3/index.json \
+          --skip-duplicate
+      continue-on-error: true
+
+    - name: Summary
+      run: |
+        echo "## Published packages" >> $GITHUB_STEP_SUMMARY
+        echo "| Package | Version |" >> $GITHUB_STEP_SUMMARY
+        echo "|---------|---------|" >> $GITHUB_STEP_SUMMARY
+        echo "| ModelingEvolution.FileSystem | ${{ steps.version.outputs.VERSION }} |" >> $GITHUB_STEP_SUMMARY

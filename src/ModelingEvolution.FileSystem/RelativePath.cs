@@ -137,8 +137,16 @@ public readonly record struct RelativePath : IParsable<RelativePath>, IComparabl
         if (string.IsNullOrEmpty(path))
             return string.Empty;
 
-        // Normalize directory separators
-        path = path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+        // Normalize all directory separators to current platform's separator
+        // This handles both Windows (\) and Unix (/) separators regardless of platform
+        path = path.Replace('\\', Path.DirectorySeparatorChar)
+                   .Replace('/', Path.DirectorySeparatorChar);
+
+        // Remove duplicate separators
+        var sep = Path.DirectorySeparatorChar;
+        var doubleSep = $"{sep}{sep}";
+        while (path.Contains(doubleSep))
+            path = path.Replace(doubleSep, sep.ToString());
 
         // Remove trailing separator
         return path.TrimEnd(Path.DirectorySeparatorChar);

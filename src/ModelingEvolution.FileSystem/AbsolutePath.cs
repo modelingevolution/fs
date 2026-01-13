@@ -170,11 +170,17 @@ public readonly record struct AbsolutePath : IParsable<AbsolutePath>, IComparabl
 
     private static string NormalizePath(string path)
     {
+        // Normalize separators before GetFullPath for consistent behavior
+        // This handles both Windows (\) and Unix (/) separators regardless of platform
+        path = path.Replace('\\', Path.DirectorySeparatorChar)
+                   .Replace('/', Path.DirectorySeparatorChar);
+
         // Get the full path to resolve . and .. segments
         var fullPath = Path.GetFullPath(path);
 
-        // Normalize directory separators
-        fullPath = fullPath.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+        // Normalize directory separators (GetFullPath may reintroduce platform separators)
+        fullPath = fullPath.Replace('\\', Path.DirectorySeparatorChar)
+                           .Replace('/', Path.DirectorySeparatorChar);
 
         // Remove trailing separator (except for root paths like "C:\" or "/")
         if (fullPath.Length > Path.GetPathRoot(fullPath)?.Length)

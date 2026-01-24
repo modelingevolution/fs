@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json.Serialization;
 using ModelingEvolution.JsonParsableConverter;
 
@@ -27,6 +29,25 @@ public readonly record struct Sha256 : IParsable<Sha256>
 
     public bool Equals(Sha256 other) => Bytes.SequenceEqual(other.Bytes);
     public override int GetHashCode() => _value is { Length: >= 4 } ? BitConverter.ToInt32(_value, 0) : 0;
+
+    /// <summary>
+    /// Computes SHA-256 hash from UTF-8 encoded string content.
+    /// </summary>
+    public static Sha256 Compute(string content)
+    {
+        var bytes = Encoding.UTF8.GetBytes(content);
+        return new Sha256(SHA256.HashData(bytes));
+    }
+
+    /// <summary>
+    /// Computes SHA-256 hash from byte array.
+    /// </summary>
+    public static Sha256 Compute(byte[] data) => new(SHA256.HashData(data));
+
+    /// <summary>
+    /// Computes SHA-256 hash from stream.
+    /// </summary>
+    public static Sha256 Compute(Stream stream) => new(SHA256.HashData(stream));
 
     public static Sha256 Parse(string s, IFormatProvider? provider = null)
     {

@@ -157,4 +157,30 @@ public class Sha1Tests
         sha.Bytes.ToArray().Should().BeEmpty();
         sha.ToString().Should().BeEmpty();
     }
+
+    [Fact]
+    public void Compute_FromString_ReturnsExpectedHash()
+    {
+        var sha = Sha1.Compute("hello");
+
+        // SHA-1 of "hello": aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d
+        sha.ToString().Should().Be("aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d");
+    }
+
+    [Fact]
+    public void Compute_FromBytes_ReturnsExpectedHash()
+    {
+        var sha = Sha1.Compute(System.Text.Encoding.UTF8.GetBytes("hello"));
+
+        sha.ToString().Should().Be("aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d");
+    }
+
+    [Fact]
+    public void Compute_FromStream_ReturnsExpectedHash()
+    {
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes("hello"));
+        var sha = Sha1.Compute(stream);
+
+        sha.ToString().Should().Be("aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d");
+    }
 }

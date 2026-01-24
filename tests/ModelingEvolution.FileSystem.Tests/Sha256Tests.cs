@@ -166,4 +166,30 @@ public class Sha256Tests
         sha.Bytes.ToArray().Should().BeEmpty();
         sha.ToString().Should().BeEmpty();
     }
+
+    [Fact]
+    public void Compute_FromString_ReturnsExpectedHash()
+    {
+        var sha = Sha256.Compute("hello");
+
+        // SHA-256 of "hello": 2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824
+        sha.ToString().Should().Be("2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824");
+    }
+
+    [Fact]
+    public void Compute_FromBytes_ReturnsExpectedHash()
+    {
+        var sha = Sha256.Compute(System.Text.Encoding.UTF8.GetBytes("hello"));
+
+        sha.ToString().Should().Be("2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824");
+    }
+
+    [Fact]
+    public void Compute_FromStream_ReturnsExpectedHash()
+    {
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes("hello"));
+        var sha = Sha256.Compute(stream);
+
+        sha.ToString().Should().Be("2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824");
+    }
 }

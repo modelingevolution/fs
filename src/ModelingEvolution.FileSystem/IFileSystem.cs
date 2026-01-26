@@ -59,4 +59,65 @@ public interface IFileSystem
     /// Deletes a directory and its contents.
     /// </summary>
     void DeleteDirectory(AbsolutePath path, bool recursive = false);
+
+    /// <summary>
+    /// Renames a file or directory.
+    /// </summary>
+    void Rename(AbsolutePath oldPath, AbsolutePath newPath);
+
+    #region Async Methods
+
+    /// <summary>
+    /// Enumerates file system entries in a directory asynchronously.
+    /// </summary>
+    Task<IReadOnlyList<FileSystemEntry>> EnumerateEntriesAsync(
+        AbsolutePath path,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets file info asynchronously.
+    /// </summary>
+    Task<FileSystemInfo?> GetFileSystemInfoAsync(AbsolutePath path, CancellationToken ct = default);
+
+    /// <summary>
+    /// Checks if a file exists asynchronously.
+    /// </summary>
+    Task<bool> FileExistsAsync(AbsolutePath path, CancellationToken ct = default);
+
+    /// <summary>
+    /// Checks if a directory exists asynchronously.
+    /// </summary>
+    Task<bool> DirectoryExistsAsync(AbsolutePath path, CancellationToken ct = default);
+
+    /// <summary>
+    /// Reads all text from a file asynchronously.
+    /// </summary>
+    Task<string> ReadAllTextAsync(AbsolutePath path, CancellationToken ct = default);
+
+    /// <summary>
+    /// Writes text to a file asynchronously.
+    /// </summary>
+    Task WriteAllTextAsync(AbsolutePath path, string content, CancellationToken ct = default);
+
+    /// <summary>
+    /// Creates a directory asynchronously.
+    /// </summary>
+    Task CreateDirectoryAsync(AbsolutePath path, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes a file asynchronously.
+    /// </summary>
+    Task DeleteFileAsync(AbsolutePath path, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes a directory asynchronously.
+    /// </summary>
+    Task DeleteDirectoryAsync(AbsolutePath path, bool recursive = false, CancellationToken ct = default);
+
+    /// <summary>
+    /// Renames a file or directory asynchronously.
+    /// </summary>
+    Task RenameAsync(AbsolutePath oldPath, AbsolutePath newPath, CancellationToken ct = default);
+
+    #endregion
 }

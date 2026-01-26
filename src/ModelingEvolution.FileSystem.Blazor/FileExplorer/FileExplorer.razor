@@ -1,0 +1,448 @@
+@using ModelingEvolution.FileSystem.Blazor.Models
+@using ModelingEvolution.FileSystem.Blazor.Services
+@using ModelingEvolution.Observable.Blazor
+@using System.ComponentModel
+@inject IFileSystem FileSystem
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@implements IAsyncDisposable
+
+<MudPaper Elevation="0" Class="@($"file-explorer {Class}")" Style="display: flex; flex-direction: column; height: 100%;">
+    @* Toolbar *@
+    @if (ShowToolbar)
+    {
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="pa-2" Style="border-bottom: 1px solid var(--mud-palette-divider);">
+            <MudText Typo="Typo.subtitle2">Files</MudText>
+            <MudStack Row="true" Spacing="0">
+                @if (AllowFileOperations)
+                {
+                    <MudTooltip Text="Add File">
+                        <MudIconButton Icon="@Icons.Material.Filled.NoteAdd"
+                                       Size="Size.Small"
+                                       OnClick="@(() => AddNewFile(null))"
+                                       Disabled="@(BasePath == default)" />
+                    </MudTooltip>
+                    <MudTooltip Text="Add Directory">
+                        <MudIconButton Icon="@Icons.Material.Filled.CreateNewFolder"
+                                       Size="Size.Small"
+                                       OnClick="@(() => AddNewDirectory(null))"
+                                       Disabled="@(BasePath == default)" />
+                    </MudTooltip>
+                }
+                <MudTooltip Text="Refresh">
+                    <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                                   Size="Size.Small"
+                                   OnClick="RefreshAsync"
+                                   Disabled="@(_treeManager?.IsLoading == true)" />
+                </MudTooltip>
+            </MudStack>
+        </MudStack>
+    }
+
+    @* File Tree *@
+    <div style="flex: 1; overflow: auto;">
+        @if (_treeManager?.IsLoading == true)
+        {
+            <MudProgressLinear Indeterminate="true" />
+        }
+        else if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Dense="true">@_errorMessage</MudAlert>
+        }
+        else if (_treeManager == null || _treeManager.RootNodes.Count == 0)
+        {
+            <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="pa-4">
+                <MudIcon Icon="@Icons.Material.Filled.FolderOff" Size="Size.Large" Color="Color.Default" />
+                <MudText Typo="Typo.body2" Color="Color.Secondary">No files found</MudText>
+            </MudStack>
+        }
+        else
+        {
+            <MudList T="FileNode" Dense="true" Class="file-tree">
+                <ObservableForEach ItemSource="_treeManager.RootNodes" Context="item" Filter="ShouldShow" IsNotifyPropertyChangedEnabled="true">
+                    <FileTreeNode Item="item"
+                                  SelectedItem="_selectedItem"
+                                  OnItemSelected="OnItemSelected"
+                                  OnExpandRequested="OnExpandRequested"
+                                  OnContextMenu="OnItemContextMenu"
+                                  GetFileIcon="GetFileIcon"
+                                  GetFileIconColor="GetFileIconColor"
+                                  FileFilter="FileFilter" />
+                </ObservableForEach>
+            </MudList>
+        }
+    </div>
+</MudPaper>
+
+@* Context Menu *@
+<MudMenu @ref="_contextMenu" ActivationEvent="MouseEvent.RightClick" PositionAtCursor="true">
+    @if (AllowFileOperations)
+    {
+        <MudMenuItem OnClick="@(() => AddNewFile(_contextItem))"
+                     Icon="@Icons.Material.Filled.NoteAdd">
+            Add File
+        </MudMenuItem>
+        <MudMenuItem OnClick="@(() => AddNewDirectory(_contextItem))"
+                     Icon="@Icons.Material.Filled.CreateNewFolder">
+            Add Directory
+        </MudMenuItem>
+        <MudDivider />
+        <MudMenuItem OnClick="@(() => RenameItem(_contextItem))"
+                     Icon="@Icons.Material.Filled.DriveFileRenameOutline"
+                     Disabled="@(_contextItem == null)">
+            Rename
+        </MudMenuItem>
+        <MudMenuItem OnClick="@(() => DeleteItem(_contextItem))"
+                     Icon="@Icons.Material.Filled.Delete"
+                     IconColor="Color.Error"
+                     Disabled="@(_contextItem == null)">
+            Delete
+        </MudMenuItem>
+    }
+</MudMenu>
+
+@code {
+    private string? _errorMessage;
+    private FileNode? _selectedItem;
+    private FileNode? _contextItem;
+    private MudMenu? _contextMenu;
+    private FileTreeManager? _treeManager;
+    private AbsolutePath _currentBasePath;
+
+    [Parameter] public AbsolutePath BasePath { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public RelativePath? SelectedPath { get; set; }
+    [Parameter] public EventCallback<RelativePath?> SelectedPathChanged { get; set; }
+    [Parameter] public Predicate<RelativePath>? FileFilter { get; set; }
+    [Parameter] public bool ShowToolbar { get; set; } = true;
+    [Parameter] public bool AllowFileOperations { get; set; } = true;
+
+    private RelativePath? _lastSelectedPath;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (BasePath != default && BasePath != _currentBasePath)
+        {
+            _currentBasePath = BasePath;
+            await InitializeTreeAsync();
+        }
+
+        // Handle external SelectedPath changes (for @bind-SelectedPath)
+        if (SelectedPath != _lastSelectedPath)
+        {
+            _lastSelectedPath = SelectedPath;
+            await TrySelectFileByPathAsync(SelectedPath);
+        }
+    }
+
+    private async Task InitializeTreeAsync()
+    {
+        _treeManager = null;
+        _errorMessage = null;
+
+        if (BasePath == default)
+        {
+            _errorMessage = "No path specified";
+            return;
+        }
+
+        if (!FileSystem.DirectoryExists(BasePath))
+        {
+            _errorMessage = $"Directory not found: {BasePath}";
+            return;
+        }
+
+        try
+        {
+            _treeManager = new FileTreeManager(FileSystem, BasePath);
+            _treeManager.PropertyChanged += OnTreeManagerPropertyChanged;
+            await _treeManager.LoadAsync();
+
+            // Try to select file if SelectedPath was set before tree loaded
+            if (SelectedPath != null)
+            {
+                await TrySelectFileByPathAsync(SelectedPath);
+            }
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+            StateHasChanged();
+        }
+    }
+
+    private void OnTreeManagerPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    public async Task RefreshAsync()
+    {
+        if (_treeManager != null)
+        {
+            await _treeManager.RefreshAsync();
+        }
+    }
+
+    private async Task OnExpandRequested(FileNode item)
+    {
+        if (!item.IsDirectory) return;
+
+        // Toggle expansion
+        item.IsExpanded = !item.IsExpanded;
+
+        // Lazy load children if needed
+        if (item.IsExpanded && !item.ChildrenLoaded && _treeManager != null)
+        {
+            await _treeManager.LoadChildrenAsync(item);
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task OnItemSelected(FileNode item)
+    {
+        _selectedItem = item;
+        _lastSelectedPath = item.RelativePath;
+        await SelectedPathChanged.InvokeAsync(item.RelativePath);
+    }
+
+    private void OnItemContextMenu(FileNode item)
+    {
+        _contextItem = item;
+        _contextMenu?.OpenMenuAsync(null!);
+    }
+
+    /// <summary>
+    /// Finds and selects a file node by its path, expanding parent directories as needed.
+    /// </summary>
+    private async Task TrySelectFileByPathAsync(RelativePath? relativePath)
+    {
+        if (relativePath == null || _treeManager == null)
+        {
+            _selectedItem = null;
+            return;
+        }
+
+        var pathStr = relativePath.Value.ToString();
+        if (string.IsNullOrEmpty(pathStr))
+            return;
+
+        // Split path into segments
+        var segments = pathStr.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length == 0)
+            return;
+
+        // Navigate through the tree, expanding directories as needed
+        var currentNodes = _treeManager.RootNodes;
+        FileNode? targetNode = null;
+
+        for (int i = 0; i < segments.Length; i++)
+        {
+            var segment = segments[i];
+            var node = currentNodes.FirstOrDefault(n => n.Name.ToString().Equals(segment, StringComparison.OrdinalIgnoreCase));
+
+            if (node == null)
+                break;
+
+            if (i == segments.Length - 1)
+            {
+                // This is the target file/folder
+                targetNode = node;
+            }
+            else if (node.IsDirectory)
+            {
+                // Expand directory and load children if needed
+                if (!node.IsExpanded)
+                {
+                    node.IsExpanded = true;
+                    if (!node.ChildrenLoaded)
+                    {
+                        await _treeManager.LoadChildrenAsync(node);
+                    }
+                }
+                currentNodes = node.Children;
+            }
+            else
+            {
+                // Not a directory but we expected one - path doesn't exist
+                break;
+            }
+        }
+
+        if (targetNode != null && !targetNode.IsDirectory)
+        {
+            await OnItemSelected(targetNode);
+        }
+    }
+
+    private async Task AddNewFile(FileNode? parentDir)
+    {
+        if (BasePath == default) return;
+
+        var parentPath = parentDir?.IsDirectory == true ? parentDir.RelativePath : RelativePath.Empty;
+        var fileName = await PromptForName("Add File", "Enter file name:", "newfile.txt");
+        if (string.IsNullOrWhiteSpace(fileName)) return;
+
+        var relativePath = parentPath.IsEmpty ? (RelativePath)fileName : parentPath + fileName;
+        var fullPath = BasePath + relativePath;
+
+        try
+        {
+            await FileSystem.WriteAllTextAsync(fullPath, string.Empty);
+            Snackbar.Add($"File '{fileName}' created", Severity.Success);
+            await RefreshAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to create file: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task AddNewDirectory(FileNode? parentDir)
+    {
+        if (BasePath == default) return;
+
+        var parentPath = parentDir?.IsDirectory == true ? parentDir.RelativePath : RelativePath.Empty;
+        var dirName = await PromptForName("Add Directory", "Enter directory name:", "newfolder");
+        if (string.IsNullOrWhiteSpace(dirName)) return;
+
+        var relativePath = parentPath.IsEmpty ? (RelativePath)dirName : parentPath + dirName;
+        var fullPath = BasePath + relativePath;
+
+        try
+        {
+            await FileSystem.CreateDirectoryAsync(fullPath);
+            Snackbar.Add($"Directory '{dirName}' created", Severity.Success);
+            await RefreshAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to create directory: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task RenameItem(FileNode? item)
+    {
+        if (item == null || BasePath == default) return;
+
+        var newName = await PromptForName("Rename", "Enter new name:", item.Name.ToString());
+        if (string.IsNullOrWhiteSpace(newName) || newName == item.Name.ToString()) return;
+
+        var parentPath = item.RelativePath.Parent;
+        var newRelativePath = parentPath.IsEmpty ? (RelativePath)newName : parentPath + newName;
+
+        var oldFullPath = BasePath + item.RelativePath;
+        var newFullPath = BasePath + newRelativePath;
+
+        try
+        {
+            await FileSystem.RenameAsync(oldFullPath, newFullPath);
+            Snackbar.Add($"Renamed to '{newName}'", Severity.Success);
+            await RefreshAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to rename: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task DeleteItem(FileNode? item)
+    {
+        if (item == null || BasePath == default) return;
+
+        var confirmed = await DialogService.ShowMessageBox(
+            "Delete",
+            $"Are you sure you want to delete '{item.Name}'?",
+            yesText: "Delete",
+            cancelText: "Cancel");
+
+        if (confirmed != true) return;
+
+        var fullPath = BasePath + item.RelativePath;
+
+        try
+        {
+            if (item.IsDirectory)
+            {
+                await FileSystem.DeleteDirectoryAsync(fullPath, recursive: true);
+            }
+            else
+            {
+                await FileSystem.DeleteFileAsync(fullPath);
+            }
+
+            Snackbar.Add($"'{item.Name}' deleted", Severity.Success);
+            await RefreshAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to delete: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task<string?> PromptForName(string title, string message, string defaultValue)
+    {
+        var result = await DialogService.ShowMessageBox(
+            title,
+            message,
+            yesText: "OK",
+            cancelText: "Cancel");
+
+        // For a proper implementation, use a custom dialog with input field
+        // This is a simplified version - in production you'd want a proper input dialog
+        if (result == true)
+            return defaultValue;
+
+        return null;
+    }
+
+    private string GetFileIcon(string fileName)
+    {
+        var ext = Path.GetExtension(fileName).ToLowerInvariant();
+        return ext switch
+        {
+            ".cs" => Icons.Material.Filled.Code,
+            ".razor" => Icons.Material.Filled.Web,
+            ".css" or ".scss" or ".sass" => Icons.Material.Filled.Style,
+            ".js" or ".ts" => Icons.Material.Filled.Javascript,
+            ".json" => Icons.Material.Filled.DataObject,
+            ".xml" or ".csproj" or ".sln" => Icons.Material.Filled.Settings,
+            ".md" or ".txt" => Icons.Material.Filled.Description,
+            ".png" or ".jpg" or ".jpeg" or ".gif" or ".svg" => Icons.Material.Filled.Image,
+            ".html" or ".htm" => Icons.Material.Filled.Html,
+            ".yml" or ".yaml" => Icons.Material.Filled.SettingsApplications,
+            ".sh" or ".ps1" or ".cmd" or ".bat" => Icons.Material.Filled.Terminal,
+            ".dll" or ".exe" => Icons.Material.Filled.Extension,
+            ".pt" or ".onnx" => Icons.Material.Filled.Memory,
+            _ => Icons.Material.Filled.InsertDriveFile
+        };
+    }
+
+    private Color GetFileIconColor(string fileName)
+    {
+        var ext = Path.GetExtension(fileName).ToLowerInvariant();
+        return ext switch
+        {
+            ".cs" => Color.Success,
+            ".razor" => Color.Primary,
+            ".json" => Color.Warning,
+            ".md" or ".txt" => Color.Default,
+            ".pt" or ".onnx" => Color.Info,
+            _ => Color.Default
+        };
+    }
+
+    private bool ShouldShow(FileNode item) => FileFilter == null || FileFilter(item.RelativePath);
+
+    public ValueTask DisposeAsync()
+    {
+        if (_treeManager != null)
+        {
+            _treeManager.PropertyChanged -= OnTreeManagerPropertyChanged;
+        }
+        return ValueTask.CompletedTask;
+    }
+}

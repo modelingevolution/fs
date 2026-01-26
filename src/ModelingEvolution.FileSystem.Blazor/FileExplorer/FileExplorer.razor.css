@@ -1,0 +1,21 @@
+.file-explorer {
+    overflow: auto;
+    max-height: 100%;
+}
+
+::deep .mud-treeview-item-content {
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+}
+
+::deep .file-tree-node {
+    cursor: pointer;
+}
+
+::deep .file-tree-node:hover {
+    background-color: var(--mud-palette-action-default-hover);
+}
+
+::deep .file-tree-node.selected {
+    background-color: var(--mud-palette-primary-hover);
+}

@@ -33,7 +33,7 @@ jobs:
     - name: Update version in csproj files
       run: |
         VERSION="${{ steps.version.outputs.VERSION }}"
-        for csproj in src/ModelingEvolution.FileSystem/ModelingEvolution.FileSystem.csproj; do
+        for csproj in src/ModelingEvolution.FileSystem/ModelingEvolution.FileSystem.csproj src/ModelingEvolution.FileSystem.Blazor/ModelingEvolution.FileSystem.Blazor.csproj; do
           if grep -q "<Version>" "$csproj"; then
             sed -i "s/<Version>.*<\/Version>/<Version>$VERSION<\/Version>/" "$csproj"
           else
@@ -52,6 +52,9 @@ jobs:
 
     - name: Pack ModelingEvolution.FileSystem
       run: dotnet pack src/ModelingEvolution.FileSystem/ModelingEvolution.FileSystem.csproj --configuration Release --no-build --output ./nupkg
+
+    - name: Pack ModelingEvolution.FileSystem.Blazor
+      run: dotnet pack src/ModelingEvolution.FileSystem.Blazor/ModelingEvolution.FileSystem.Blazor.csproj --configuration Release --no-build --output ./nupkg
 
     - name: Push to NuGet
       run: |
@@ -76,3 +79,4 @@ jobs:
         echo "| Package | Version |" >> $GITHUB_STEP_SUMMARY
         echo "|---------|---------|" >> $GITHUB_STEP_SUMMARY
         echo "| ModelingEvolution.FileSystem | ${{ steps.version.outputs.VERSION }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| ModelingEvolution.FileSystem.Blazor | ${{ steps.version.outputs.VERSION }} |" >> $GITHUB_STEP_SUMMARY

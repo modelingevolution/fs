@@ -1,0 +1,82 @@
+@using ModelingEvolution.FileSystem.Blazor.Models
+@using ModelingEvolution.Observable.Blazor
+
+<div @oncontextmenu="HandleContextMenu" @oncontextmenu:preventDefault="true">
+    <MudListItem T="FileNode"
+                 Dense="true"
+                 Class="@($"file-tree-node {(Item == SelectedItem ? "selected" : "")}")"
+                 OnClick="HandleClick"
+                 Style="@($"padding-left: {Depth * 16}px;")">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+            @if (Item.IsDirectory)
+            {
+                <MudIcon Icon="@(Item.IsExpanded ? Icons.Material.Filled.KeyboardArrowDown : Icons.Material.Filled.KeyboardArrowRight)"
+                         Size="Size.Small"
+                         Color="Color.Default" />
+                <MudIcon Icon="@(Item.IsExpanded ? Icons.Material.Filled.FolderOpen : Icons.Material.Filled.Folder)"
+                         Size="Size.Small"
+                         Color="Color.Warning" />
+            }
+            else
+            {
+                <MudIcon Icon="@Icons.Material.Filled.Remove"
+                         Size="Size.Small"
+                         Color="Color.Transparent"
+                         Style="visibility: hidden;" />
+                <MudIcon Icon="@GetFileIcon.Invoke(Item.Name.ToString())"
+                         Size="Size.Small"
+                         Color="@GetFileIconColor.Invoke(Item.Name.ToString())" />
+            }
+            <MudText Typo="Typo.body2">
+                @Item.Name
+            </MudText>
+        </MudStack>
+    </MudListItem>
+</div>
+
+@if (Item.IsDirectory && Item.IsExpanded)
+{
+    <ObservableForEach ItemSource="Item.Children" Context="child" Filter="ShouldShow" IsNotifyPropertyChangedEnabled="true">
+        <FileTreeNode Item="child"
+                      Depth="Depth + 1"
+                      SelectedItem="SelectedItem"
+                      OnItemSelected="OnItemSelected"
+                      OnExpandRequested="OnExpandRequested"
+                      OnContextMenu="OnContextMenu"
+                      GetFileIcon="GetFileIcon"
+                      GetFileIconColor="GetFileIconColor"
+                      FileFilter="FileFilter" />
+    </ObservableForEach>
+}
+
+@code {
+    [Parameter, EditorRequired] public FileNode Item { get; set; } = null!;
+    [Parameter] public int Depth { get; set; }
+    [Parameter] public FileNode? SelectedItem { get; set; }
+    [Parameter] public EventCallback<FileNode> OnItemSelected { get; set; }
+    [Parameter] public EventCallback<FileNode> OnExpandRequested { get; set; }
+    [Parameter] public EventCallback<FileNode> OnContextMenu { get; set; }
+    [Parameter] public Func<string, string> GetFileIcon { get; set; } = _ => Icons.Material.Filled.InsertDriveFile;
+    [Parameter] public Func<string, Color> GetFileIconColor { get; set; } = _ => Color.Default;
+    [Parameter] public Predicate<RelativePath>? FileFilter { get; set; }
+
+    private async Task HandleClick()
+    {
+        if (Item.IsDirectory)
+        {
+            // Request expansion (parent will handle lazy loading)
+            await OnExpandRequested.InvokeAsync(Item);
+        }
+        else
+        {
+            await OnItemSelected.InvokeAsync(Item);
+        }
+    }
+
+    private void HandleContextMenu(MouseEventArgs e)
+    {
+        OnContextMenu.InvokeAsync(Item);
+    }
+
+    private bool ShouldShow(FileNode item) => FileFilter == null || FileFilter(item.RelativePath);
+}

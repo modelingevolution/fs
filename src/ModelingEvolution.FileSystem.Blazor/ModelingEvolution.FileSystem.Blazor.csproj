@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <PackageId>ModelingEvolution.FileSystem.Blazor</PackageId>
+    <Title>ModelingEvolution.FileSystem.Blazor</Title>
+    <Description>Blazor FileExplorer component with MudBlazor for browsing local file systems. Uses IFileSystem abstraction for all operations.</Description>
+    <Authors>ModelingEvolution</Authors>
+    <PackageTags>blazor;fileexplorer;filesystem;mudblazor;filebrowser</PackageTags>
+    <PackageProjectUrl>https://github.com/modelingevolution/fs</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/modelingevolution/fs</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ModelingEvolution.FileSystem\ModelingEvolution.FileSystem.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MudBlazor" Version="8.15.0" />
+    <PackageReference Include="ModelingEvolution.Observable.Blazor" Version="0.0.*" />
+  </ItemGroup>
+
+</Project>

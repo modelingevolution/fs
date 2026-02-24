@@ -27,6 +27,11 @@ public readonly record struct AbsolutePath : IParsable<AbsolutePath>, IComparabl
     }
 
     /// <summary>
+    /// Gets the length of the path string.
+    /// </summary>
+    public int Length => (_value ?? string.Empty).Length;
+
+    /// <summary>
     /// Gets the file name portion of the path as a RelativePath.
     /// </summary>
     public RelativePath FileName

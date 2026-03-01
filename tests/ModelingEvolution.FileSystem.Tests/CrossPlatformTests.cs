@@ -193,4 +193,75 @@ public class CrossPlatformTests
     }
 
     #endregion
+
+    #region FileSystemPath.Resolve
+
+    [Fact]
+    public void Resolve_NativePath_NormalizesSeparators()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            FileSystemPath.Resolve(@"C:\projects\app").Should().Be(@"C:\projects\app");
+            FileSystemPath.Resolve("C:/projects/app").Should().Be(@"C:\projects\app");
+        }
+        else
+        {
+            FileSystemPath.Resolve("/projects/app").Should().Be("/projects/app");
+            FileSystemPath.Resolve(@"/projects\app").Should().Be("/projects/app");
+        }
+    }
+
+    [Fact]
+    public void Resolve_CrossPlatformDrivePath_ConvertsCorrectly()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            FileSystemPath.Resolve("/mnt/d/source").Should().Be(@"D:\source");
+        }
+        else
+        {
+            FileSystemPath.Resolve(@"D:\source").Should().Be("/mnt/d/source");
+        }
+    }
+
+    [Fact]
+    public void Resolve_CrossPlatformDriveRoot_ConvertsCorrectly()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            FileSystemPath.Resolve("/mnt/d").Should().Be(@"D:\");
+        }
+        else
+        {
+            FileSystemPath.Resolve(@"D:\").Should().Be("/mnt/d/");
+        }
+    }
+
+    [Fact]
+    public void Resolve_CrossPlatformForwardSlashes_ConvertsCorrectly()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            FileSystemPath.Resolve("/mnt/c/Users/foo").Should().Be(@"C:\Users\foo");
+        }
+        else
+        {
+            FileSystemPath.Resolve("D:/source/project").Should().Be("/mnt/d/source/project");
+        }
+    }
+
+    [Fact]
+    public void Resolve_RelativePath_NormalizesSeparatorsOnly()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            FileSystemPath.Resolve("src/components/ui").Should().Be(@"src\components\ui");
+        }
+        else
+        {
+            FileSystemPath.Resolve(@"src\components\ui").Should().Be("src/components/ui");
+        }
+    }
+
+    #endregion
 }

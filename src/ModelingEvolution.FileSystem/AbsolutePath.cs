@@ -20,10 +20,12 @@ public readonly record struct AbsolutePath : IParsable<AbsolutePath>, IComparabl
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
-        if (!Path.IsPathRooted(path))
+        if (!Path.IsPathRooted(path) && !path.StartsWith('~') && !path.StartsWith('$'))
             throw new ArgumentException($"Path '{path}' is not absolute (not rooted).", nameof(path));
 
-        _value = NormalizePath(path);
+        // Store paths with ~ or $ unexpanded — call Expand() to resolve them.
+        // Don't normalize paths containing $ (env vars would be mangled by Path.GetFullPath).
+        _value = path.StartsWith('~') || path.Contains('$') ? path : NormalizePath(path);
     }
 
     /// <summary>
@@ -96,6 +98,14 @@ public readonly record struct AbsolutePath : IParsable<AbsolutePath>, IComparabl
         var newPath = Path.ChangeExtension(_value ?? string.Empty, newExtension.WithDot);
         return new AbsolutePath(newPath);
     }
+
+    /// <summary>
+    /// Expands ~ (home directory) and ${ENV_VAR}/$ENV_VAR environment variables in this path.
+    /// Returns a new AbsolutePath with all expressions resolved.
+    /// Example: "~/.claude/.credentials.json" → "/home/user/.claude/.credentials.json"
+    /// Example: "${HOME}/data" → "/home/user/data"
+    /// </summary>
+    public AbsolutePath Expand() => new(PathExpander.Expand(_value ?? string.Empty));
 
     #region Operators
 

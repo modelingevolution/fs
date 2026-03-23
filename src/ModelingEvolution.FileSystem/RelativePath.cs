@@ -23,10 +23,11 @@ public readonly record struct RelativePath : IParsable<RelativePath>, IComparabl
     /// <exception cref="ArgumentException">Thrown when the path is rooted (absolute).</exception>
     public RelativePath(string path)
     {
-        if (Path.IsPathRooted(path))
+        if (Path.IsPathRooted(path) && !path.StartsWith('$'))
             throw new ArgumentException($"Path '{path}' is absolute, not relative.", nameof(path));
 
-        _value = NormalizePath(path);
+        // Store paths with $ unexpanded — call Expand() to resolve them
+        _value = path.StartsWith('$') ? path : NormalizePath(path);
     }
 
     /// <summary>
@@ -96,6 +97,13 @@ public readonly record struct RelativePath : IParsable<RelativePath>, IComparabl
         var newPath = Path.ChangeExtension(_value ?? string.Empty, newExtension.WithDot);
         return string.IsNullOrEmpty(newPath) ? Empty : new RelativePath(newPath);
     }
+
+    /// <summary>
+    /// Expands ${ENV_VAR}/$ENV_VAR environment variables in this path.
+    /// Returns a new RelativePath with all expressions resolved.
+    /// Example: "${PROJECT_NAME}/bin" → "myapp/bin"
+    /// </summary>
+    public RelativePath Expand() => new(PathExpander.Expand(_value ?? string.Empty));
 
     #region Operators
 
